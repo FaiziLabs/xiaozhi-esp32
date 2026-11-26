@@ -1,0 +1,24 @@
+name: Keye build
+on: workflow_dispatch
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v1.6.2
+      - name: Patch screen rotation and mic gain
+        run: |
+          sed -i '/CONFIG_LCD_ST7789_240X240_7PIN/,/#endif/{s/DISPLAY_MIRROR_X false/DISPLAY_MIRROR_X true/;s/DISPLAY_MIRROR_Y false/DISPLAY_MIRROR_Y true/}' main/boards/bread-compact-wifi-lcd/config.h
+          sed -i 's/bit32_buffer\[i\] >> 12/bit32_buffer[i] >> 10/' main/audio_codecs/no_audio_codec.cc
+          printf 'CONFIG_BOARD_TYPE_BREAD_COMPACT_WIFI_LCD=y\nCONFIG_LCD_ST7789_240X240_7PIN=y\nCONFIG_LANGUAGE_EN_US=y\n' >> sdkconfig.defaults.esp32s3
+          git diff
+      - uses: espressif/esp-idf-ci-action@v1
+        with:
+          esp_idf_version: v5.4.1
+          target: esp32s3
+          command: idf.py build && idf.py merge-bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: keye-firmware
+          path: build/merged-binary.bin
